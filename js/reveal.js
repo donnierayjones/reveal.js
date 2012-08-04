@@ -1,5 +1,5 @@
 /*!
- * reveal.js 1.4
+ * reveal.js 1.5 r7
  * http://lab.hakim.se/reveal-js
  * MIT licensed
  * 
@@ -12,21 +12,47 @@ var Reveal = (function(){
 
 		IS_TOUCH_DEVICE = !!( 'ontouchstart' in window ),
 
+		// Configurations defaults, can be overridden at initialization time 
+		config = {
+			// Display controls in the bottom right corner
+			controls: true,
+
+			// Display a presentation progress bar
+			progress: true,
+
+			// Push each slide change to the browser history
+			history: false,
+
+			// Enable keyboard shortcuts for navigation
+			keyboard: true,
+
+			// Loop the presentation
+			loop: false,
+
+			// Number of milliseconds between automatically proceeding to the 
+			// next slide, disabled when set to 0
+			autoSlide: 0,
+
+			// Enable slide navigation via mouse wheel
+			mouseWheel: true,
+
+			// Apply a 3D roll to links on hover
+			rollingLinks: true,
+
+			// UI style
+			theme: 'default', // default/neon/beige
+
+			// Transition style
+			transition: 'default' // default/cube/page/concave/linear(2d)
+		},
+
 		// The horizontal and verical index of the currently active slide
 		indexh = 0,
 		indexv = 0,
 
-		// Configurations options, can be overridden at initialization time 
-		config = {
-			controls: true,
-			progress: false,
-			history: false,
-			loop: false,
-			mouseWheel: true,
-			rollingLinks: true,
-			transition: 'default',
-			theme: 'default'
-		},
+		// The previous and current slide HTML elements
+		previousSlide,
+		currentSlide,
 
 		// Slides may hold a data-state attribute which we pick up and apply 
 		// as a class to the body. This list contains the combined state of 
@@ -54,6 +80,9 @@ var Reveal = (function(){
 		
 		// Throttles mouse wheel navigation
 		mouseWheelTimeout = 0,
+
+		// An interval used to automatically move on to the next slide
+		autoSlideTimeout = 0,
 
 		// Delays updates to the URL due to a Chrome thumbnailer bug
 		writeURLTimeout = 0,
@@ -107,6 +136,9 @@ var Reveal = (function(){
 		// Read the initial hash
 		readURL();
 
+		// Start auto-sliding if it's enabled
+		cueAutoSlide();
+
 		// Set up hiding of the browser address bar
 		if( navigator.userAgent.match( /(iphone|ipod|android)/i ) ) {
 			// Give the page some scrollable overflow
@@ -121,8 +153,8 @@ var Reveal = (function(){
 	}
 
 	function configure() {
-		// Fall back on the 2D transform theme 'linear'
 		if( supports3DTransforms === false ) {
+			// Fall back on the 2D transform theme 'linear'
 			config.transition = 'linear';
 		}
 
@@ -130,7 +162,7 @@ var Reveal = (function(){
 			dom.controls.style.display = 'block';
 		}
 
-		if( config.progress ) {
+		if( config.progress && dom.progress ) {
 			dom.progress.style.display = 'block';
 		}
 
@@ -139,7 +171,7 @@ var Reveal = (function(){
 		}
 
 		if( config.theme !== 'default' ) {
-			dom.wrapper.classList.add( config.theme );
+			document.documentElement.classList.add( 'theme-' + config.theme );
 		}
 
 		if( config.mouseWheel ) {
@@ -154,11 +186,14 @@ var Reveal = (function(){
 	}
 
 	function addEventListeners() {
-		document.addEventListener( 'keydown', onDocumentKeyDown, false );
 		document.addEventListener( 'touchstart', onDocumentTouchStart, false );
 		document.addEventListener( 'touchmove', onDocumentTouchMove, false );
 		document.addEventListener( 'touchend', onDocumentTouchEnd, false );
 		window.addEventListener( 'hashchange', onWindowHashChange, false );
+
+		if( config.keyboard ) {
+			document.addEventListener( 'keydown', onDocumentKeyDown, false );
+		}
 
 		if ( config.controls && dom.controls ) {
 			dom.controlsLeft.addEventListener( 'click', preventAndForward( navigateLeft ), false );
@@ -269,19 +304,20 @@ var Reveal = (function(){
 			case 13: if( overviewIsActive() ) { deactivateOverview(); triggered = true; } break;
 		}
 
+		// If the input resulted in a triggered action we should prevent 
+		// the browsers default behavior
 		if( triggered ) {
 			event.preventDefault();
 		}
 		else if ( event.keyCode === 27 && supports3DTransforms ) {
-			if( overviewIsActive() ) {
-				deactivateOverview();
-			}
-			else {
-				activateOverview();
-			}
+			toggleOverview();
 	
 			event.preventDefault();
 		}
+
+		// If auto-sliding is enabled we need to cue up 
+		// another timeout
+		cueAutoSlide();
 
 	}
 
@@ -618,6 +654,9 @@ var Reveal = (function(){
 	 * set indices. 
 	 */
 	function slide( h, v ) {
+		// Remember where we were at before
+		previousSlide = currentSlide;
+
 		// Remember the state before this slide
 		var stateBefore = state.concat();
 
@@ -654,7 +693,7 @@ var Reveal = (function(){
 		}
 
 		// Update progress if enabled
-		if( config.progress ) {
+		if( config.progress && dom.progress ) {
 			dom.progressbar.style.width = ( indexh / ( document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR ).length - 1 ) ) * window.innerWidth + 'px';
 		}
 
@@ -668,30 +707,36 @@ var Reveal = (function(){
 		clearTimeout( writeURLTimeout );
 		writeURLTimeout = setTimeout( writeURL, 1500 );
 
-		// Only fire if the slide index is different from before
+		// Query all horizontal slides in the deck
+		var horizontalSlides = document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR );
+
+		// Find the current horizontal slide and any possible vertical slides
+		// within it
+		var currentHorizontalSlide = horizontalSlides[ indexh ],
+			currentVerticalSlides = currentHorizontalSlide.querySelectorAll( 'section' );
+
+		// Store references to the previous and current slides
+		currentSlide = currentVerticalSlides[ indexv ] || currentHorizontalSlide;
+
+		// Dispatch an event if the slide changed
 		if( indexh !== indexhBefore || indexv !== indexvBefore ) {
-			// Query all horizontal slides in the deck
-			var horizontalSlides = document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR );
-
-			// Find the previous and current horizontal slides
-			var previousHorizontalSlide = horizontalSlides[ indexhBefore ],
-				currentHorizontalSlide = horizontalSlides[ indexh ];
-
-			// Query all vertical slides inside of the previous and current horizontal slides
-			var previousVerticalSlides = previousHorizontalSlide.querySelectorAll( 'section' );
-				currentVerticalSlides = currentHorizontalSlide.querySelectorAll( 'section' );
-
-			// Dispatch an event notifying observers of the change in slide
 			dispatchEvent( 'slidechanged', {
-				// Include the current indices in the event
 				'indexh': indexh, 
 				'indexv': indexv,
-
-				// Passes direct references to the slide HTML elements, attempts to find
-				// a vertical slide and falls back on the horizontal parent
-				'previousSlide': previousVerticalSlides[ indexvBefore ] || previousHorizontalSlide,
-				'currentSlide': currentVerticalSlides[ indexv ] || currentHorizontalSlide
+				'previousSlide': previousSlide,
+				'currentSlide': currentSlide
 			} );
+		}
+		else {
+			// Ensure that the previous slide is never the same as the current
+			previousSlide = null;
+		}
+
+		// Solves an edge case where the previous slide maintains the 
+		// 'present' class when navigating between adjacent vertical 
+		// stacks
+		if( previousSlide ) {
+			previousSlide.classList.remove( 'present' );
 		}
 	}
 
@@ -739,12 +784,12 @@ var Reveal = (function(){
 	function readURL() {
 		// Break the hash down to separate components
 		var bits = window.location.hash.slice(2).split('/');
-		
+
 		// Read the index components of the hash
-		indexh = parseInt( bits[0] ) || 0 ;
-		indexv = parseInt( bits[1] ) || 0 ;
-		
-		navigateTo( indexh, indexv );
+		var h = parseInt( bits[0] ) || 0 ;
+		var v = parseInt( bits[1] ) || 0 ;
+
+		navigateTo( h, v );
 	}
 	
 	/**
@@ -822,7 +867,7 @@ var Reveal = (function(){
 				verticalFragments[ verticalFragments.length - 1 ].classList.remove( 'visible' );
 
 				// Notify subscribers of the change
-				dispatchEvent( 'fragmenthidden', { fragment: verticalFragments[0] } );
+				dispatchEvent( 'fragmenthidden', { fragment: verticalFragments[ verticalFragments.length - 1 ] } );
 				return true;
 			}
 		}
@@ -833,12 +878,21 @@ var Reveal = (function(){
 				horizontalFragments[ horizontalFragments.length - 1 ].classList.remove( 'visible' );
 
 				// Notify subscribers of the change
-				dispatchEvent( 'fragmenthidden', { fragment: horizontalFragments[0] } );
+				dispatchEvent( 'fragmenthidden', { fragment: horizontalFragments[ horizontalFragments.length - 1 ] } );
 				return true;
 			}
 		}
 		
 		return false;
+	}
+
+	function cueAutoSlide() {
+		clearTimeout( autoSlideTimeout );
+
+		// Cue the next auto-slide if enabled
+		if( config.autoSlide ) {
+			autoSlideTimeout = setTimeout( navigateNext, config.autoSlide );
+		}
 	}
 	
 	/**
@@ -909,6 +963,10 @@ var Reveal = (function(){
 		if( nextFragment() === false ) {
 			availableRoutes().down ? navigateDown() : navigateRight();
 		}
+
+		// If auto-sliding is enabled we need to cue up 
+		// another timeout
+		cueAutoSlide();
 	}
 
 	/**
@@ -935,8 +993,38 @@ var Reveal = (function(){
 		navigateNext: navigateNext,
 		toggleOverview: toggleOverview,
 
+		// Adds or removes all internal event listeners (such as keyboard)
 		addEventListeners: addEventListeners,
 		removeEventListeners: removeEventListeners,
+
+		// Returns the indices of the current slide
+		getIndices: function() {
+			return { 
+				h: indexh, 
+				v: indexv 
+			};
+		},
+
+		// Returns the previous slide element, may be null
+		getPreviousSlide: function() {
+			return previousSlide
+		},
+
+		// Returns the current slide element
+		getCurrentSlide: function() {
+			return currentSlide
+		},
+
+		// Helper method, retrieves query string as a key/value hash
+		getQueryHash: function() {
+			var query = {};
+
+			location.search.replace( /[A-Z0-9]+?=(\w*)/gi, function(a) {
+				query[ a.split( '=' ).shift() ] = a.split( '=' ).pop();
+			} );
+
+			return query;
+		},
 
 		// Forward event binding to the reveal DOM element
 		addEventListener: function( type, listener, useCapture ) {

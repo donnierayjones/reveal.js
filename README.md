@@ -10,10 +10,10 @@ Curious about how it looks in action? [Check out the demo page](http://lab.hakim
 
 ### Markup
 
-Markup heirarchy needs to be ``<div id="reveal"> <div class="slides"> <section>`` where the ``<section>`` represents one slide and can be repeated indefinitely. If you place multiple ``<section>``'s inside of another ``<section>`` they will be shown as vertical slides. For example:
+Markup heirarchy needs to be ``<div class="reveal"> <div class="slides"> <section>`` where the ``<section>`` represents one slide and can be repeated indefinitely. If you place multiple ``<section>``'s inside of another ``<section>`` they will be shown as vertical slides. For example:
 
 ```html
-<div id="reveal">
+<div class="reveal">
 	<div class="slides"> 
 		<section>Single Horizontal Slide</section>
 		<section>
@@ -24,9 +24,24 @@ Markup heirarchy needs to be ``<div id="reveal"> <div class="slides"> <section>`
 </div>
 ```
 
+### Markdown
+
+It's possible to write your slides using Markdown. To enable Markdown simply add the ```data-markdown``` attribute to your ```<section>``` elements and reveal.js will automatically load the JavaScript parser. 
+
+This is based on [data-markdown](https://gist.github.com/1343518) from [Paul Irish](https://github.com/paulirish) which in turn uses [showdown](https://github.com/coreyti/showdown/). This is sensitive to indentation (avoid mixing tabs and spaces) and line breaks (avoid consecutive breaks). Updates to come.
+
+```html
+<section data-markdown>
+	## Page title
+	
+	A paragraph with some text and a [link](http://hakim.se).
+</section>
+```
+
+
 ### Configuration
 
-At the end of your page, after ``<script src="js/reveal.js"></script>``, you need to initialize reveal by running the following code. Note that all config values are optional.
+At the end of your page, after ``<script src="js/reveal.js"></script>``, you need to initialize reveal by running the following code. Note that all config values are optional and will default as specified below.
 
 ```javascript
 Reveal.initialize({
@@ -36,20 +51,27 @@ Reveal.initialize({
 	// Display a presentation progress bar
 	progress: true,
 
-	// If true; each slide will be pushed to the browser history
-	history: true,
+	// Push each slide change to the browser history
+	history: false,
 
-	// Loops the presentation, defaults to false
+	// Enable keyboard shortcuts for navigation
+	keyboard: true,
+
+	// Loop the presentation
 	loop: false,
 
-	// Flags if mouse wheel navigation should be enabled
+	// Number of milliseconds between automatically proceeding to the 
+	// next slide, disabled when set to 0
+	autoSlide: 0,
+
+	// Enable slide navigation via mouse wheel
 	mouseWheel: true,
 
 	// Apply a 3D roll to links on hover
 	rollingLinks: true,
 
 	// UI style
-	theme: 'default', // default/neon
+	theme: 'default', // default/neon/beige
 
 	// Transition style
 	transition: 'default' // default/cube/page/concave/linear(2d)
@@ -58,16 +80,25 @@ Reveal.initialize({
 
 ### API
 
-The Reveal class provides a minimal JavaScript API for controlling its navigation:
+The Reveal class provides a minimal JavaScript API for controlling navigation and reading state:
 
-- Reveal.navigateTo( indexh, indexv );
-- Reveal.navigateLeft();
-- Reveal.navigateRight();
-- Reveal.navigateUp();
-- Reveal.navigateDown();
-- Reveal.navigatePrev();
-- Reveal.navigateNext();
-- Reveal.toggleOverview();
+```javascript
+// Navigation
+Reveal.navigateTo( indexh, indexv );
+Reveal.navigateLeft();
+Reveal.navigateRight();
+Reveal.navigateUp();
+Reveal.navigateDown();
+Reveal.navigatePrev();
+Reveal.navigateNext();
+Reveal.toggleOverview();
+
+// Retrieves the previous and current slide elements
+Reveal.getPreviousSlide();
+Reveal.getCurrentSlide();
+
+Reveal.getIndices(); // { h: 0, v: 0 } }
+```
 
 ### States
 
@@ -104,6 +135,31 @@ Reveal.addEventListener( 'fragmenthidden', function( event ) {
 } );
 ```
 
+### Folder Structure
+- **css/** Core styles without which the project does not function
+- **js/** Like above but for JavaScript
+- **plugin/** Components that have been developed as extensions to reveal.js
+- **lib/** All other third party assets (JavaScript, CSS, fonts)
+
+## Speaker Notes
+
+If you're interested in using speaker notes, reveal.js comes with a Node server that allows you to deliver your presentation in one browser while viewing speaker notes in another. 
+
+To include speaker notes in your presentation, simply add an `<aside class="notes">` element to any slide. These notes will be hidden in the main presentation view.
+
+You'll also need to [install Node.js](http://nodejs.org/); then, install the server dependencies by running `npm install`.
+
+Once Node.js and the dependencies are installed, run the following command from the root directory:
+
+		node plugin/speakernotes
+
+By default, the slides will be served at [localhost:1947](http://localhost:1947).
+
+You can change the appearance of the speaker notes by editing the file at `plugin/speakernotes/notes.html`.	
+
+### Known Issues
+
+- The notes page is supposed to show the current slide and the next slide, but when it first starts, it always shows the first slide in both positions. 
 
 ## Examples
 
@@ -128,6 +184,9 @@ Reveal.addEventListener( 'fragmenthidden', function( event ) {
 * [How To Cope With Graphical Challenges Using Latest Web Technologies](http://alexw.me/playground/slideshows/w3c_netcraft/) by [Alex Wolkov](https://github.com/altryne)
 * [Going Deeper with jQuery Mobile](http://andymatthews.net/downloads/presentations/going-deeper-with-jquery-mobile/) by [Andy Matthews](https://github.com/commadelimited)
 * [Studio Nord](http://studionord.org)
+* [Herrljunga Cider](http://herrljungacider.se/uk/campaign/)
+* [PhoneGap Pain Points](http://phonegap-pain-points.appspot.com/) by [Pamela Fox](https://github.com/pamelafox)
+* [Using HTML5 To Power Your Game Production](http://www.blitzgamesstudios.com/blitztech/html5-presentation) by Richard Hackett
 
 
 [Send me a link](http://hakim.se/about/contact) if you used reveal.js for a project or presentation.
@@ -135,55 +194,71 @@ Reveal.addEventListener( 'fragmenthidden', function( event ) {
 
 ## History
 
-#### 1.4 (master/beta)
-- Main #reveal container is now selected via a class instead of ID
+#### 1.5 (master/beta)
+- New API method ```Reveal.getPreviousSlide()```
+- New API method ```Reveal.getCurrentSlide()```
+- New API method ```Reveal.getIndices()```
+- Fixed bug where the ```.present``` class was sometimes left on the previous slide
+- Added support for slides written using markdown
+- Added helped method ```Reveal.getQueryHash()```
+
+#### 1.4
+- Main ```#reveal container``` is now selected via a class instead of ID
 - API methods for adding or removing all event listeners
-- The 'slidechange' event now includes currentSlide and previousSlide
-- Fixed bug where 'slidechange' was firing twice when history was enabled
+- The ```slidechange``` event now includes currentSlide and previousSlide
+- Fixed bug where ```slidechange``` was firing twice when history was enabled
+- Folder structure updates for scalability (see /lib & /plugin)
+- Slide notes by [rmurphey](https://github.com/rmurphey)
+- Bumped up default font-size for code samples
+- Added beige theme
+- Added ```autoSlide``` config
+- Bug fix: The ```slidechanged``` event is now firing upon ```hashchange```. Thanks [basecode](https://github.com/basecode)
+- Bug fix: JS error when the ```progress``` option was true but there was no progress DOM element
+- ```keyboard``` config flag for disabling all keyboard navigation
 
 #### 1.3
 - Revised keyboard shortcuts, including ESC for overview, N for next, P for previous. Thanks [mahemoff](https://github.com/mahemoff)
 - Added support for looped presentations via config
 - Fixed IE9 fallback
-- Added event binding methods (Reveal.addEventListener, Reveal.removeEventListener)
-- Added 'slidechanged' event
+- Added event binding methods (```Reveal.addEventListener```, ```Reveal.removeEventListener```)
+- Added ```slidechanged``` event
 - Added print styles. Thanks [skypanther](https://github.com/skypanther)
 - The address bar now hides automatically on mobile browsers
 - Space and return keys can be used to exit the overview mode
-- Events for fragment states ('fragmentshown'/'fragmenthidden')
+- Events for fragment states (```fragmentshown``` / ```fragmenthidden```)
 - Support for swipe navigation on touch devices. Thanks [akiersky](https://github.com/akiersky)
 - Support for pinch to overview on touch devices
 
 #### 1.2
 
 - Big changes to DOM structure:
-  - Previous #main wrapper is now called #reveal
-  - Slides were moved one level deeper, into #reveal .slides
-  - Controls and progress bar were moved into #reveal
-- CSS is now much more explicit, rooted at #reveal, to prevent conflicts
+  - Previous ```#main``` wrapper is now called ```#reveal```
+  - Slides were moved one level deeper, into ```#reveal .slides```
+  - Controls and progress bar were moved into ```#reveal```
+- CSS is now much more explicit, rooted at ```#reveal```, to prevent conflicts
 - Config option for disabling updates to URL, defaults to true
 - Anchors with image children no longer rotate in 3D on hover
 - Support for mouse wheel navigation ([naugtur](https://github.com/naugtur))
 - Delayed updates to URL hash to work around a bug in Chrome
-- Included a classList polyfill for IE9
+- Included a ```classList``` polyfill for IE9
 - Support for wireless presenter keys
-- States can now be applied as classes on the document element by adding data-state on a slide
+- States can now be applied as classes on the document element by adding ```data-state``` on a slide
 
 #### 1.1
 
 - Added an optional presentation progress bar
 - Images wrapped in anchors no longer unexpectedly flip in 3D
 - Slides that contain other slides are given the 'stack' class
-- Added 'transition' option for specifying transition styles
-- Added 'theme' option for specifying UI styles
-- New transitions: 'box' & 'page'
-- New theme: 'neon'
+- Added ```transition``` option for specifying transition styles
+- Added ```theme``` option for specifying UI styles
+- New transitions: ```box``` & ```page```
+- New theme: ```neon```
 
 #### 1.0
 
 - New and improved style
 - Added controls in bottom right which indicate where you can navigate
-- Reveal views in iteratively by giving them the .fragment class
+- Reveal views in iteratively by giving them the ```.fragment``` class
 - Code sample syntax highlighting thanks to [highlight.js](http://softwaremaniacs.org/soft/highlight/en/description/)
 - Initialization options (toggling controls, toggling rolling links, transition theme)
 

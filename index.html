@@ -1,138 +1,143 @@
 <!doctype html>
 <html lang="en">
+	<head>
+		<meta charset="utf-8">
+		
+		<title>reveal.js - HTML5 Presentations</title>
 
-  <head>
-    <meta charset="utf-8">
+		<meta name="description" content="An easy to use CSS 3D slideshow tool for quickly creating good looking HTML presentations.">
+		<meta name="author" content="Hakim El Hattab">
 
-    <title>reveal.js</title>
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		
+		<link href='http://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+		
+		<link rel="stylesheet" href="css/reset.css">
+		<link rel="stylesheet" href="css/main.css">
+		<link rel="stylesheet" href="css/print.css" type="text/css" media="print">
 
-    <meta name="description" content="An easy to use CSS 3D slideshow tool for quickly creating good looking HTML presentations.">
-    <meta name="author" content="Hakim El Hattab">
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+	</head>
+	
+	<body>
+		
+		<div class="reveal">
 
-    <link rel="icon" type="image/x-icon" href="favicon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+			<!-- Used to fade in a background when a specific slide state is reached -->
+			<div class="state-background"></div>
+			
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+			</div>
 
-    <link href='http://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+			<!-- The navigational controls UI -->
+			<aside class="controls">
+				<a class="left" href="#">&#x25C4;</a>
+				<a class="right" href="#">&#x25BA;</a>
+				<a class="up" href="#">&#x25B2;</a>
+				<a class="down" href="#">&#x25BC;</a>
+			</aside>
 
-    <link rel="stylesheet" href="css/reset.css">
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/print.css" type="text/css" media="print">
+			<!-- Presentation progress bar -->
+			<div class="progress"><span></span></div>
+			
+		</div>
 
-    <link rel="stylesheet" href="lib/zenburn.css">
-  </head>
+		<script src="lib/js/head.min.js"></script>
 
-  <body>
+		<script>
+			// Scripts that should be loaded before initializing
+			var scripts = [];
 
-    <div class="reveal">
+			// If the browser doesn't support classList, load a polyfill
+			if( !document.body.classList ) {
+				scripts.push( 'lib/js/classList.js' );
+			}
 
-      <!-- Used to fade in a background when a specific slide state is reached -->
-      <div class="state-background"></div>
+			// If we're runnning the notes server we need to include some additional JS
+			// TODO Is there a better way to determine if we're running the notes server?
+			if( window.location.host === 'localhost:1947' ) {
+				scripts.push( 'socket.io/socket.io.js' );
+				scripts.push( 'plugin/speakernotes/client.js' );
+			}
 
-      <!-- Any section element inside of this container is displayed as a slide -->
-      <div class="slides">
-      </div>
+			scripts.push( 'js/reveal.js' );
+      scripts.push( 'lib/js/showdown.js' );
+      scripts.push( 'http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js' );
 
-      <!-- The navigational controls UI -->
-      <aside class="controls">
-      <a class="left" href="#">&#x25C4;</a>
-      <a class="right" href="#">&#x25BA;</a>
-      <a class="up" href="#">&#x25B2;</a>
-      <a class="down" href="#">&#x25BC;</a>
-      </aside>
+			// Load the scripts and, when completed, initialize reveal.js
+			head.js.apply( null, scripts.concat([function() {
 
-      <!-- Displays presentation progress, max value changes via JS to reflect # of slides -->
-      <div class="progress"><span></span></div>
+        var mdConverter = new Showdown.converter();
 
-    </div>
-
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
-
-    <!-- Showdown for Markdown conversion -->
-    <script src="lib/showdown.js"></script>
-
-    <!-- load the slides -->
-    <script>
-      var mdConverter = new Showdown.converter();
-
-      $.ajax({
-        url: 'slides.md',
-        success: function(data) {
-          if (data.length>0) {
-            var converted = mdConverter.makeHtml(data);
-            $.each(converted.split('========================================================================'), function(i, outerSection) {
-              var $html = $('<section/>');
-              var innerSections = outerSection.split('<hr />');
-              if(innerSections.length > 1) {
-                $.each(innerSections, function(j, innerSection) {
-                  $html.append($('<section/>').html(innerSection));
-                });
-                } else {
-                $html.html(outerSection);
-              }
-              $('.slides').append($html);
-            });
-            present();
+        $.ajax({
+          url: 'slides.md',
+          success: function(data) {
+            if (data.length>0) {
+              var converted = mdConverter.makeHtml(data);
+              $.each(converted.split('========================================================================'), function(i, outerSection) {
+                var $html = $('<section/>');
+                var innerSections = outerSection.split('<hr />');
+                if(innerSections.length > 1) {
+                  $.each(innerSections, function(j, innerSection) {
+                    $html.append($('<section/>').html(innerSection));
+                  });
+                  } else {
+                  $html.html(outerSection);
+                }
+                $('.slides').append($html);
+              });
+              present();
+            }
           }
-        }
-      });
-    </script>
-
-    <!-- Optional libraries for code syntax highlighting and classList support in IE9 -->
-    <script src="lib/highlight.js"></script>
-    <script src="lib/classList.js"></script>
-
-    <script src="js/reveal.js"></script>
-
-    <script>
-
-      var present = function() {
-
-        // Parse the query string into a key/value object
-        var query = {};
-        location.search.replace( /[A-Z0-9]+?=(\w*)/gi, function(a) {
-          query[ a.split( '=' ).shift() ] = a.split( '=' ).pop();
-        } );
-
-        // Fires when a slide with data-state=customevent is activated
-        Reveal.addEventListener( 'customevent', function() {
-          alert( '"customevent" has fired' );
-        } );
-
-        // Fires each time a new slide is activated
-        Reveal.addEventListener( 'slidechanged', function( event ) {
-          // event.previousSlide, event.currentSlide, event.indexh, event.indexv
-        } );
-
-        Reveal.initialize({
-          // Display controls in the bottom right corner
-          controls: true,
-
-          // Display a presentation progress bar
-          progress: true,
-
-          // If true; each slide will be pushed to the browser history
-          history: true,
-
-          // Loops the presentation, defaults to false
-          loop: false,
-
-          // Flags if mouse wheel navigation should be enabled
-          mouseWheel: true,
-
-          // Apply a 3D roll to links on hover
-          rollingLinks: true,
-
-          // UI style
-          theme: query.theme || 'default', // default/neon
-
-          // Transition style
-          transition: query.transition || 'default' // default/cube/page/concave/linear(2d)
         });
 
-        hljs.initHighlightingOnLoad();
-      }
-    </script>
+        var present = function() {
 
-  </body>
+          // Fires when a slide with data-state=customevent is activated
+          Reveal.addEventListener( 'customevent', function() {
+            console.log( '"customevent" has fired' );
+          } );
+
+          // Fires each time a new slide is activated
+          Reveal.addEventListener( 'slidechanged', function( event ) {
+            // event.previousSlide, event.currentSlide, event.indexh, event.indexv
+          } );
+
+          // Full list of configuration options available here:
+          // https://github.com/hakimel/reveal.js#configuration
+          Reveal.initialize({
+            theme: Reveal.getQueryHash().theme || 'default', // default/neon/beige
+
+            transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/linear(2d)
+
+            // Display controls in the bottom right corner
+            controls: true,
+
+            // Display a presentation progress bar
+            progress: true,
+
+            // If true; each slide will be pushed to the browser history
+            history: true,
+
+            // Loops the presentation, defaults to false
+            loop: false,
+
+            // Flags if mouse wheel navigation should be enabled
+            mouseWheel: true,
+
+            // Apply a 3D roll to links on hover
+            rollingLinks: true
+          });
+        };
+      }]));
+			
+			// Load highlight.js for syntax highlighting of code samples
+			head.js( 'lib/js/highlight.js', function() {
+				hljs.initHighlightingOnLoad();
+			} );
+		</script>
+
+	</body>
 </html>
